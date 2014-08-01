@@ -1,0 +1,17 @@
+{
+  "name": "buddy-sdk",
+  "version": "2.0.0",
+  "description" : "The JS SDK for Buddy Platform",
+  "homepage" : "http://buddy.com",
+  "license": "Apache-2.0",
+  "main" : "Src/buddy.js",
+  "repository" : {
+    "type": "git",
+    "url": "https://github.com/BuddyPlatform/Buddy-JS-SDK"
+  },
+  "dependencies" : {
+    "request" : "2.39.0",
+    "promise" : "5.0.0",
+    "dom-storage" : "2.0.1"
+  }
+}

@@ -1,7 +1,40 @@
+if(!window){
+  var window = {};
+}
+
+window.Buddy = function(root) {
+  var request = null;
+  if(require){
+    request = require('request');
+    var Storage = require('dom-storage')
+    window['localStorage'] = new Storage('./db.json', {strict: false});
+    $ = {};
+    var navigator = {
+      userAgent : 'nodejs'
+    };
+  }
+  if(request){
+    // we are in a node.js environment, use request module
+    $.ajax = function(options){
+      var requestOptions = {};
+      requestOptions.uri = options.url;
+      requestOptions.method = options.method || "GET";
+      requestOptions.headers = options.headers;
+      if(typeof options.data == 'string'){
+        requestOptions.body = options.data;
+      }
+      request(requestOptions, function(error,response,data){
+        if(response.statusCode > 400 && options.error){
+          options.error(data, response.statusCode,response);
+        } else if(options.success) {
+          options.success(JSON.parse(data));
+        }
+      });
+   }
+  }
+
 window.Buddy =  function (root) {
 	var buddy = {};
-
-
 	function supports_html5_storage(){
 		try {
 			return 'localStorage' in window && window['localStorage'] !== null;
@@ -10,11 +43,11 @@ window.Buddy =  function (root) {
 		}
 	}
 
+
 	function _calculateClientKey(appId, options){
 		return appId + options.instanceName;
-	}
+	}	
 
-	
 	function BuddyClient(appId, appKey, settings){
 		if(!appId)
 		{
@@ -70,13 +103,13 @@ window.Buddy =  function (root) {
 					settings[key] = updates[key];
 				}
 			}
-
 			if (!client._settings.nosave) {
 			    window.localStorage.setItem(_calculateClientKey(client._appId, client._settings), JSON.stringify(settings));
 			}
 			client._settings = settings;
 			return client._settings;
 		}
+    	return updates;
 	}
 
 	function clearSettings(client, type) {
@@ -106,18 +139,18 @@ window.Buddy =  function (root) {
 		var s = getSettings(client);
 
 		if (!s.unique_id) {
-			
+
 			s = updateSettings(client, {
 				unique_id: client._appId + ":" +new Date().getTime() // good enough for this
 			})
 		}
-		
+
 		return s.unique_id;
 	}
-	
+
 	function getAccessToken(client) {
 		var s = getSettings(client);
-		
+
 		var token = s.user_token || s.device_token;
 
 		if (token && (!token.expires || token.expires > new Date().getTime())) {
@@ -125,10 +158,10 @@ window.Buddy =  function (root) {
 		}
 		return null;
 	}
-    	
+
 	function setAccessToken(client, type, value) {
 		if (value) {
-			
+
 			value = {
 				value: value.accessToken,
 				expires: value.accessTokenExpires.getTime()
@@ -139,9 +172,7 @@ window.Buddy =  function (root) {
 
 		update[type + "_token"] = value;
 
-		updateSettings(client, update);
-	}
-    	
+	}    	
 	function loadCreds(client) {
 		var s = getSettings(client);
 
@@ -221,7 +252,7 @@ window.Buddy =  function (root) {
 				});
 
 				setAccessToken(self, 'user', user);
-			
+
 			}
 			callback && callback(err, r && r.result);
 		};
@@ -232,7 +263,7 @@ window.Buddy =  function (root) {
 			username: username,
 			password: password
 		}, cb);
-		
+
 	}
 
 	BuddyClient.prototype.logoutUser = function(callback) {
@@ -286,7 +317,6 @@ window.Buddy =  function (root) {
 				callback && callback(err);
 			}
 			else if (timeoutInSeconds && result.result) {
-				
 				var r2 = {
 					 finish: function(values2, callback2){
 					 	if (typeof values2 == 'function') {
@@ -294,10 +324,10 @@ window.Buddy =  function (root) {
 					 		values2 = null;
 					 	}
 						self.delete(
-							'/metrics/events/' + result.result.id, 
+							'/metrics/events/' + result.result.id,
 							{
 									values: values
-							}, 
+							},
 							function(err){
 								callback2 && callback2(err);
 							});
@@ -319,7 +349,7 @@ window.Buddy =  function (root) {
 	
 	function processResult(client, result, callback) {
 		client._requestCount--;
-		
+
 		result.success = !result.error;
 
 		if (result.error) {
@@ -359,7 +389,7 @@ window.Buddy =  function (root) {
 
 		// see if we've already got an access token
 		var at = getAccessToken(client);
-		
+
 		if (at && !client._appKey) {
 			return callback(new Error("Init must be called first."))
 		}
@@ -421,7 +451,7 @@ window.Buddy =  function (root) {
 			for (var name in parameters) {
 				var val = parameters[name];
 
-				if (val instanceof File) {
+				if ( (typeof File !== "undefined" &&  val instanceof File) || (typeof Blob !== "undefined" && val instanceof Blob)) {
 					fileParams = {} || fileParams;
 					fileParams[name] = val;
 				}
@@ -466,7 +496,6 @@ window.Buddy =  function (root) {
 				parameters = nonFileParams ? JSON.stringify(nonFileParams) : null;
 			}
 		}
-		
 		// OK, let's make the call for realz
 		//
 		var s = getSettings(client);
@@ -502,7 +531,7 @@ window.Buddy =  function (root) {
 						case AuthErrors.AuthAccessTokenInvalid:
 						case AuthErrors.AuthAppCredentialsInvalid:
 							// if we get either of those, drop all our app state.
-							// 
+							//
 							clearSettings(client);
 							break;
 						case AuthErrors.AuthUserAccessTokenRequired:
@@ -705,3 +734,7 @@ window.Buddy =  function (root) {
 	
 	return buddy;
 }();
+
+if(module){
+  module.exports = window.Buddy;
+}
