@@ -9,9 +9,17 @@
     "type": "git",
     "url": "https://github.com/BuddyPlatform/Buddy-JS-SDK"
   },
+  "devDependencies" : {
+    "jshint": "~2.5.3"
+  },
   "dependencies" : {
     "request" : "2.39.0",
     "promise" : "5.0.0",
     "dom-storage" : "2.0.1"
-  }
+  },
+  "jshintConfig": {
+    "unused": true,
+    "undef": true
+  },
+  "prepublish": "make"
 }
