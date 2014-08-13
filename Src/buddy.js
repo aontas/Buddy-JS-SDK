@@ -738,6 +738,9 @@ window.Buddy = function(root) {
 		return _client;
 	};
 
+  buddy.clear = function() {
+		clearSettings(_client);
+	};
 
 	// HELPER METHODS -
 	// We wrap a few common operations.
