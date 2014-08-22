@@ -1,6 +1,6 @@
 {
   "name": "buddy-sdk",
-  "version": "3.0.1",
+  "version": "3.0.2",
   "description" : "The JS SDK for Buddy Platform",
   "homepage" : "http://buddy.com",
   "license": "Apache-2.0",
