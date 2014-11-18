@@ -1,21 +1,35 @@
+/**
+ * Let JSHint which variables we expect to be globally scoped
+ */
+
+/*global console*/
+/*global File*/
+/*global Blob*/
+/*global FormData*/
+/*global require*/
+/*global setTimeout*/
+/*global module*/
+
 if(!window){
   var window = {};
 }
 
 window.Buddy = function(root) {
+  "use strict";
   var request = null;
-  if(require){
+  if(typeof require == "function"){
     request = require('request');
     var Storage = require('dom-storage');
+    /*jshint -W020 */
     window.localStorage = new Storage('./db.json', {strict: false});
-    $ = {};
-    var navigator = {
+    window.$ = {};
+    window.navigator = {
       userAgent : 'nodejs'
     };
   }
   if(request){
     // we are in a node.js environment, use request module
-    $.ajax = function(options){
+    window.$.ajax = function(options){
       var requestOptions = {};
       requestOptions.uri = options.url;
       requestOptions.method = options.method || "GET";
@@ -46,6 +60,7 @@ window.Buddy = function(root) {
         Several functions taken from Paul Johnston
     */
 
+  /* jshint ignore:start */
 	(function (B) {
 	    function r(a, c, b) {
 	        var f = 0, e = [0], g = "", h = null, g = b || "UTF8"; if ("UTF8" !== g && "UTF16" !== g) throw "encoding must be UTF8 or UTF16"; if ("HEX" === c) { if (0 !== a.length % 2) throw "srcString of HEX type must be in byte increments"; h = u(a); f = h.binLen; e = h.value } else if ("ASCII" === c || "TEXT" === c) h = v(a, g), f = h.binLen, e = h.value; else if ("B64" === c) h = w(a), f = h.binLen, e = h.value; else throw "inputFormat must be HEX, TEXT, ASCII, or B64"; this.getHash = function (a, c, b, g) {
@@ -82,11 +97,12 @@ window.Buddy = function(root) {
                 h, h = p(g, C), g = e, e = f, f = c, c = p(C, u); d[0] = p(c, d[0]); d[1] = p(f, d[1]); d[2] = p(e, d[2]); d[3] = p(g, d[3]); d[4] = p(h, d[4]); d[5] = p(k, d[5]); d[6] = p(q, d[6]); d[7] = p(r, d[7])
             } if ("SHA-224" === b) a = [d[0], d[1], d[2], d[3], d[4], d[5], d[6]]; else if ("SHA-256" === b) a = d; else throw "Unexpected error in SHA-2 implementation"; return a
 	    } "function" === typeof define && typeof define.amd ? define(function () { return r }) : "undefined" !== typeof exports ? "undefined" !== typeof module && module.exports ? module.exports = exports = r : exports = r : B.jsSHA = r
-	})(this);
-
+	})(buddy);
+  /* jshint ignore:end */
 
 	function signString(stringToSign, secret) {
-	    var shaObj = new jsSHA(stringToSign, "TEXT");
+      /*jshint -W055 */
+	    var shaObj = new buddy.jsSHA(stringToSign, "TEXT");
 	    var hmac = shaObj.getHMAC(secret, "TEXT", "SHA-256", "HEX");
 	    return hmac;
 	}
@@ -121,7 +137,7 @@ window.Buddy = function(root) {
 
 	function _calculateClientKey(appId, options){
 		return appId + options.instanceName;
-	};
+	}
 
 	function BuddyClient(appId, appKey, settings){
 		if(!appId)
@@ -136,9 +152,9 @@ window.Buddy = function(root) {
 		this._appKey = appKey;
 
 		if (settings) {
-		    if (settings['sharedSecret']) {
-		        this._sharedSecret = settings['sharedSecret'];
-		        delete settings['sharedSecret'];
+		    if (settings.sharedSecret) {
+		        this._sharedSecret = settings.sharedSecret;
+		        delete settings.sharedSecret;
 		    }
 		    else {
 		        this._sharedSecret = null;
@@ -164,9 +180,6 @@ window.Buddy = function(root) {
 
 		this._output = settings.output || console;
 
-		function startRequest() {
-			this._requestCount++;
-		}
 	}
 
 	function getSettings(client, force) {
@@ -174,12 +187,13 @@ window.Buddy = function(root) {
 
 			var json = window.localStorage.getItem(_calculateClientKey(client._appId, client._settings || {}));
 			client._settings = JSON.parse(json);
-		}
-		return client._settings || {};
-	}
-        if (supports_html5_storage() && client._appId) {
-            var settings = updates;
+    }
+    return client._settings || {};
+  }
 
+  function updateSettings(client,updates, replace){
+    var settings = {};
+    if(supports_html5_storage() && client._appId){
 			if (!replace) {
 				settings = getSettings(client);
 				for (var key in updates) {
@@ -190,9 +204,9 @@ window.Buddy = function(root) {
 			    window.localStorage.setItem(_calculateClientKey(client._appId, client._settings), JSON.stringify(settings));
 			}
 			client._settings = settings;
-			return client._settings;
-		}
-        return updates;
+      return client._settings;
+    }
+    return updates;
 	}
 
 	function clearSettings(client, type) {
@@ -257,15 +271,6 @@ window.Buddy = function(root) {
     	updateSettings(client, update);
 
 	}
-	function loadCreds(client) {
-		var s = getSettings(client);
-
-		if (s && s.app_id) {
-			client._appId = s.app_id;
-			client._appKey = s.app_key;
-			getAccessToken(client);
-		}
-	}
 
 	BuddyClient.prototype.registerDevice = function(appId, appKey, callback){
 		if (getAccessToken(this)) {
@@ -279,11 +284,11 @@ window.Buddy = function(root) {
 		    if (r.success) {
 		        if (self._settings && self._sharedSecret) {
 		            var clientSig = makeServerDevicesSignature(self._appKey, self._sharedSecret);
-		            if (r.result["serverSignature"] != clientSig) {
+		            if (r.result.serverSignature != clientSig) {
 		                var error = new Error("Unable to verify Server Signature");
 		                error.errorNumber = AuthErrors.AuthCannotValidateSharedSecret;
-		                self._output && self._output.log && self._output.log("Device Registration Failed (Could not validate Server signature). Check your shared secret config.");
-		                callback && callback(err, r);
+		                if(self._output && self._output.log) self._output.log("Device Registration Failed (Could not validate Server signature). Check your shared secret config.");
+		                if(callback) callback(err, r);
 		                return;
 		            }
 		        }
@@ -311,7 +316,7 @@ window.Buddy = function(root) {
 			appID: appId || this._appId,
 			appKey: appKey || this._appKey,
 			platform: this._settings.platform || "Javascript",
-			model: navigator.userAgent,
+			model: window.navigator.userAgent,
 			uniqueId: getUniqueId(this)
 		},cb, true);
 	};
@@ -400,9 +405,9 @@ window.Buddy = function(root) {
 	};
 
 	BuddyClient.prototype.recordMetricEvent = function(eventName, values, timeoutInSeconds, callback) {
-		if (typeof timeoutInMinutes == 'function') {
-			callback = timeoutInMinutes;
-			timeoutInMinutes = null;
+		if (typeof timeoutInSeconds == 'function') {
+			callback = timeoutInSeconds;
+			timeoutInSeconds = null;
 		}
 		var self = this;
 
@@ -455,7 +460,7 @@ window.Buddy = function(root) {
 			if(callback) callback(err, result);
 			if (!callback || callback._printResult) {
 				if(client._output && client._output.warn) client._output.warn(JSON.stringify(result,  null, 2));
-				$.event.trigger({
+				window.$.event.trigger({
 					type: "BuddyError",
 					buddy: result
 				});
@@ -470,14 +475,12 @@ window.Buddy = function(root) {
 		}
 	}
 
-    var processParameters = function(parameters){
+    var processParameters = function(parameters, method, headers){
         // look for file parameters
-		    //
+        //
         var fileParams = null;
         var nonFileParams = null;
         if (parameters) {
-
-
 
           for (var name in parameters) {
             var val = parameters[name];
@@ -510,16 +513,16 @@ window.Buddy = function(root) {
             var formData = new FormData();
 
             // push in any file parameters
-                    for (var p in fileParams) {
-                            formData.append(p, fileParams[p]);
-                    }
+            for (var p in fileParams) {
+              formData.append(p, fileParams[p]);
+            }
 
-                    // the rest of the params go in as a single JSON entity named "body"
-                    //
-                    if (nonFileParams) {
-                        formData.append("body", new Blob([JSON.stringify(nonFileParams)], {type:'application/json'}));
-                    }
-                    parameters = formData;
+            // the rest of the params go in as a single JSON entity named "body"
+            //
+            if (nonFileParams) {
+              formData.append("body", new Blob([JSON.stringify(nonFileParams)], {type:'application/json'}));
+            }
+            parameters = formData;
 
           }
           else {
@@ -527,10 +530,10 @@ window.Buddy = function(root) {
             parameters = nonFileParams ? JSON.stringify(nonFileParams) : null;
           }
         }
-        return parameters;
+      return parameters;
     };
 
-    var handleRequestError = function(data, status, response,client,callback) {
+    var handleRequestError = function(data, status, response,client,r,callback) {
 
         // check our error states, then continue to process result
         if (data.status === 0) {
@@ -560,106 +563,105 @@ window.Buddy = function(root) {
         processResult(client, data, callback);
     };
 
-	var makeRequest = function(client, method, url, parameters, callback, noAutoToken) {
-        if (!method || !url) {
-			throw new Error("Method and URL required.");
-		}
-		method = method.toUpperCase();
-
-		if (typeof parameters == 'function') {
-			callback = parameters;
-			parameters = null;
-		}
-
-		// see if we've already got an access token
-		var at = getAccessToken(client);
-
-		if (at && !client._appKey) {
-			return callback(new Error("Init must be called first."));
-		}
-		else if (!at && !noAutoToken) {
-			// if we don't have an access token, automatically get the device
-			// registered, then retry this call.
-
-            var cb = function (err, r1) {
-                if (!err && r1.success) {
-                    at = getAccessToken(client);
-
-                    if (at) {
-                        makeRequest(client, method, url, parameters, callback);
-                        return;
-                    }
-                }
-                else {
-                    if(callback) callback(err, r1);
-                }
-            };
-            cb._printResult = false;
-			client.registerDevice(null, null, cb);
-			return;
-		}
-
-		// we love JSON.
-		var headers = {
-				"Accept" : "application/json"
-		};
-
-		// if it's a get, encode the parameters
-		// on the URL
-	    //
-		var baseUrl = url;
-
-		if (method == "GET" && parameters !== null) {
-			url += "?";
-			for (var k in parameters) {
-				var v = parameters[k];
-				if (v) {
-					url += k + "=" + encodeURIComponent(v.toString()) + "&";
-				}
-			}
-			parameters = null;
-		}
-		else if (parameters !== null) {
-			headers["Content-Type"] = "application/json";
-		}
-
-		var settings = getSettings(client);
-		if (at) {
-		    if (client._sharedSecret) {
-		        var sig = makeHash(method, baseUrl, client._appId, client._sharedSecret);
-
-		        headers["Authorization"] = "Buddy " + at + " " + sig;
-		    }
-		    else {
-		        headers["Authorization"] = "Buddy " + at;
-		    }
-		}
-    parameters = processParameters(parameters);
-
-		// OK, let's make the call for realz
-		//
-		var s = getSettings(client);
-		var r = s.root || root;
-
-		var self = client;
-
-
-        $.ajax({
-            method: method,
-            type: method,
-			url: r + url,
-			headers: headers,
-			contentType: false,
-			processData: false,
-			data: parameters,
-            success:function(data) {
-                        processResult(self, data, callback);
-                    },
-			error: function(data,status,response){
-        handleRequestError(data,status,response,client,callback);
+	  var makeRequest = function(client, method, url, parameters, callback, noAutoToken) {
+      if (!method || !url) {
+        throw new Error("Method and URL required.");
       }
-		});
-		return 'Waiting for ' + url + "...";
+      method = method.toUpperCase();
+
+      if (typeof parameters == 'function') {
+        callback = parameters;
+        parameters = null;
+      }
+
+      // see if we've already got an access token
+      var at = getAccessToken(client);
+
+      if (at && !client._appKey) {
+        return callback(new Error("Init must be called first."));
+      }
+      else if (!at && !noAutoToken) {
+        // if we don't have an access token, automatically get the device
+        // registered, then retry this call.
+
+              var cb = function (err, r1) {
+                  if (!err && r1.success) {
+                      at = getAccessToken(client);
+
+                      if (at) {
+                          makeRequest(client, method, url, parameters, callback);
+                          return;
+                      }
+                  }
+                  else {
+                      if(callback) callback(err, r1);
+                  }
+              };
+              cb._printResult = false;
+        client.registerDevice(null, null, cb);
+        return;
+      }
+
+      // we love JSON.
+      var headers = {
+          "Accept" : "application/json"
+      };
+
+      // if it's a get, encode the parameters
+      // on the URL
+        //
+      var baseUrl = url;
+
+      if (method == "GET" && parameters !== null) {
+        url += "?";
+        for (var k in parameters) {
+          var v = parameters[k];
+          if (v) {
+            url += k + "=" + encodeURIComponent(v.toString()) + "&";
+          }
+        }
+        parameters = null;
+      }
+      else if (parameters !== null) {
+        headers["Content-Type"] = "application/json";
+      }
+
+      if (at) {
+          if (client._sharedSecret) {
+              var sig = makeHash(method, baseUrl, client._appId, client._sharedSecret);
+
+              headers.Authorization = "Buddy " + at + " " + sig;
+          }
+          else {
+              headers.Authorization = "Buddy " + at;
+          }
+      }
+      parameters = processParameters(parameters, method, headers);
+
+      // OK, let's make the call for realz
+      //
+      var s = getSettings(client);
+      var r = s.root || root;
+
+      var self = client;
+
+
+          window.$.ajax({
+              method: method,
+              type: method,
+        url: r + url,
+        headers: headers,
+        contentType: false,
+        processData: false,
+        data: parameters,
+              success:function(data) {
+                          processResult(self, data, callback);
+                      },
+        error: function(data,status,response){
+          handleRequestError(data,status,response,client,r,callback);
+        }
+      });
+      return 'Waiting for ' + url + "...";
     };
 
 	BuddyClient.prototype.get = function(url, parameters, callback, noAuto) {
@@ -719,8 +721,8 @@ window.Buddy = function(root) {
 
 
 
-	_clients = {};
-	_client = null;
+	var _clients = {};  //private
+	var _client = null;  //private
 
 	buddy.init = function(appId, appKey, options) {
 		if (!appId || !appKey) throw new Error("appId and appKey required");
@@ -736,7 +738,7 @@ window.Buddy = function(root) {
 		return _client;
 	};
 
-	clear = function() {
+  buddy.clear = function() {
 		clearSettings(_client);
 	};
 
@@ -792,7 +794,7 @@ window.Buddy = function(root) {
 		AuthAccessTokenInvalid :            0x104,
 		AuthUserAccessTokenRequired :       0x107,
 		AuthAppCredentialsInvalid:          0x105,
-	    AuthCannotValidateSharedSecret:     0x110         
+    AuthCannotValidateSharedSecret:     0x110
 	};
 
 	//
@@ -851,6 +853,6 @@ window.Buddy = function(root) {
 	return buddy;
 }();
 
-if(module){
+if("undefined" !== typeof module){
   module.exports = window.Buddy;
 }

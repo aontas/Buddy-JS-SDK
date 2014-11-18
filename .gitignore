@@ -1,3 +1,7 @@
+#nodey things`
+node_modules/*
+db.json
+
 #Mac OS X Finder and whatnot
 .DS_Store
 .idea
