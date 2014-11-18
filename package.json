@@ -9,6 +9,10 @@
     "type": "git",
     "url": "https://github.com/BuddyPlatform/Buddy-JS-SDK"
   },
+  "devDependencies": {
+    "jshint" : "~2.5.3"
+  },
+
   "dependencies" : {
     "request" : "2.39.0",
     "promise" : "5.0.0",
