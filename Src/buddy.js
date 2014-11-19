@@ -14,11 +14,12 @@ if(!window){
   var window = {};
 }
 
-window.Buddy = function(root) {
+window.Buddy = function() {
   "use strict";
   var request = null;
   if(typeof require == "function"){
     request = require('request');
+    window.EventEmitter = require('events').EventEmitter;
     var Storage = require('dom-storage');
     /*jshint -W020 */
     window.localStorage = new Storage('./db.json', {strict: false});
@@ -30,6 +31,7 @@ window.Buddy = function(root) {
   if(request){
     // we are in a node.js environment, use request module
     window.$.ajax = function(options){
+
       var requestOptions = {};
       requestOptions.uri = options.url;
       requestOptions.method = options.method || "GET";
@@ -37,13 +39,27 @@ window.Buddy = function(root) {
       if(typeof options.data == 'string'){
         requestOptions.body = options.data;
       }
-      request(requestOptions, function(error,response,data){
-        if(response.statusCode > 400 && options.error){
+      var r = request(requestOptions, function(error,response,data){
+        if(error){
+          options.error({responseText:"unexpected error"}, error, response);
+        } else if(response.statusCode > 400 && options.error){
           options.error({responseText: data}, response.statusCode,response);
         } else if(options.success) {
           options.success(JSON.parse(data));
         }
       });
+      if(typeof options.data == 'object'){
+        var form = r.form();
+        Object.keys(options.data).map(function(k){
+          var val = options.data[k].value || options.data[k];
+          var dataOptions = options.data[k].options || {};
+          form.append(k, val, dataOptions);
+        });
+      }
+    };
+    window.$.event = new window.EventEmitter();
+    window.$.event.trigger = function(event){
+      this.emit(event.type, event);
     };
   }
 	var buddy = {};
@@ -174,7 +190,7 @@ window.Buddy = function(root) {
 			}
 		}
 
-		this.root = this._settings.root || "https://api.buddyplatform.com";
+    this.root = this._settings.root || "https://api.buddyplatform.com";
 		this._settings.root = this.root;
 		this._requestCount = 0;
 
@@ -457,7 +473,7 @@ window.Buddy = function(root) {
 			err.errorNumber = result.errorNumber;
 			err.status = result.status;
 
-			if(callback) callback(err, result);
+			if(callback) callback.call(client, err, result);
 			if (!callback || callback._printResult) {
 				if(client._output && client._output.warn) client._output.warn(JSON.stringify(result,  null, 2));
 				window.$.event.trigger({
@@ -478,6 +494,12 @@ window.Buddy = function(root) {
     var processParameters = function(parameters, method, headers){
         // look for file parameters
         //
+        var isFileParam = function(val){
+          return (typeof File !== "undefined" &&  val instanceof File) ||
+            (typeof Blob !== "undefined" && val instanceof Blob) ||
+            (typeof val == 'object' && typeof val.read == 'function')  || //val is a readable stream with no options
+            (typeof val == 'object' && typeof val.value == 'object' && typeof val.value.read == 'function') ; //val.value is a readable stream with options
+        };
         var fileParams = null;
         var nonFileParams = null;
         if (parameters) {
@@ -485,7 +507,7 @@ window.Buddy = function(root) {
           for (var name in parameters) {
             var val = parameters[name];
 
-            if ( (typeof File !== "undefined" &&  val instanceof File) || (typeof Blob !== "undefined" && val instanceof Blob)) {
+            if ( isFileParam(val) ) {
               fileParams = {} || fileParams;
               fileParams[name] = val;
             }
@@ -501,8 +523,20 @@ window.Buddy = function(root) {
               throw new Error("Get does not support file parameters.");
             }
 
-            if (!FormData) {
+            if (typeof(FormData) == 'undefined' && typeof require != 'function') {
               throw new Error("Sorry, this browser doesn't support FormData.");
+            } else if ( typeof require == 'function'){
+              //we're in node-land, just return an object
+
+              headers['Content-Type'] = 'multipart/form-data';
+              var multipartParams = {};
+              if(nonFileParams){
+                multipartParams.body = JSON.stringify(nonFileParams);
+
+              }
+              Object.keys(fileParams).map( function(fp) { multipartParams[fp] = fileParams[fp]; }  );
+
+              return multipartParams;
             }
 
             // for any file parameters, build up a FormData object.
@@ -641,7 +675,7 @@ window.Buddy = function(root) {
       // OK, let's make the call for realz
       //
       var s = getSettings(client);
-      var r = s.root || root;
+      var r = s.root || client.root;
 
       var self = client;
 
